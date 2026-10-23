@@ -32,6 +32,9 @@ class SentenceTransformersTokenTextSplitter(TextSplitter):
             model_kwargs: Additional parameters for model initialization.
                 Parameters of sentence_transformers.SentenceTransformer can be used.
 
+                The model is loaded on CPU unless a `device` is given, since only
+                its tokenizer is used.
+
         Raises:
             ImportError: If the `sentence_transformers` package is not installed.
             ValueError: If `tokens_per_chunk` exceeds the model's maximum token limit.
@@ -50,7 +53,9 @@ class SentenceTransformersTokenTextSplitter(TextSplitter):
             raise ImportError(msg) from err
 
         self.model_name = model_name
-        self._model = sentence_transformer_cls(self.model_name, **(model_kwargs or {}))
+        # Only the tokenizer is used, so don't load the weights onto an accelerator.
+        model_kwargs = {"device": "cpu", **(model_kwargs or {})}
+        self._model = sentence_transformer_cls(self.model_name, **model_kwargs)
         self.tokenizer = self._model.tokenizer
         self._initialize_chunk_configuration(tokens_per_chunk=tokens_per_chunk)
 

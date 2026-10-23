@@ -146,6 +146,36 @@ def test_missing_optional_dependency_raises_importerror(
 
 
 @pytest.mark.parametrize(
+    ("model_kwargs", "expected_device"),
+    [(None, "cpu"), ({"device": "xpu:1"}, "xpu:1")],
+)
+def test_sentence_transformers_splitter_loads_model_on_cpu_by_default(
+    model_kwargs: dict[str, Any] | None,
+    expected_device: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the tokenizer is used, so the model stays off accelerators by default."""
+    import sys  # noqa: PLC0415
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    from langchain_text_splitters.sentence_transformers import (  # noqa: PLC0415
+        SentenceTransformersTokenTextSplitter,
+    )
+
+    sentence_transformers = MagicMock()
+    sentence_transformers.SentenceTransformer.return_value.max_seq_length = 128
+    monkeypatch.setitem(sys.modules, "sentence_transformers", sentence_transformers)
+
+    SentenceTransformersTokenTextSplitter(
+        model_name="mock-model", model_kwargs=model_kwargs
+    )
+
+    sentence_transformers.SentenceTransformer.assert_called_once_with(
+        "mock-model", device=expected_device
+    )
+
+
+@pytest.mark.parametrize(
     "class_name",
     [
         "KonlpyTextSplitter",
